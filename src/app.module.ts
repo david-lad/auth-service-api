@@ -4,6 +4,8 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
+import { HealthController } from './health.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -14,5 +16,6 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
