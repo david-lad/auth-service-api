@@ -4,24 +4,27 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm install --production=false
+RUN npm ci --only=development
 COPY . .
-# Generate Prisma client
-RUN npx prisma generate
 # Build the NestJS app
 RUN npm run build
 
 # ----------- Production Stage -----------
 FROM node:18-alpine
 WORKDIR /app
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl dumb-init
 COPY package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY prisma ./prisma
+RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-# Generate Prisma client in production image (required for runtime)
+# Generate Prisma client for production
 RUN npx prisma generate
-# Run migrations on container start
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
 
-EXPOSE 7000
+EXPOSE 3000
