@@ -4,7 +4,7 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm ci --only=development
+RUN npm ci
 COPY . .
 # Build the NestJS app
 RUN npm run build
@@ -15,7 +15,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl dumb-init
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 # Generate Prisma client for production
 RUN npx prisma generate
