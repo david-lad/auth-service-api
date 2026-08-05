@@ -4,6 +4,8 @@ import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
+import { RateLimit, RateLimitGuard } from '../common/guards/rate-limit.guard';
+import { User } from '@prisma/client';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard)
@@ -12,6 +14,8 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ ttl: 3600000, limit: 3 }) // 3 per hour
   @HttpCode(HttpStatus.CREATED)
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
@@ -19,6 +23,8 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ ttl: 900000, limit: 5 }) // 5 per 15 minutes
   @HttpCode(HttpStatus.OK)
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
@@ -38,7 +44,7 @@ export class AuthController {
   }
 
   @Get('me')
-  getProfile(@GetUser() user: any) {
+  getProfile(@GetUser() user: User) {
     return { user };
   }
 }

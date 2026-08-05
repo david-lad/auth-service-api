@@ -22,6 +22,11 @@ model User {
   lastName  String?
   role      Role     @default(USER)
   isActive  Boolean  @default(true)
+
+  // Account lockout fields
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
