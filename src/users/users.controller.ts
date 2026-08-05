@@ -4,7 +4,7 @@ import { AssignRoleDto, UpdateUserDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @Controller('users')
@@ -13,7 +13,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get('profile')
-  getProfile(@GetUser() user: any) {
+  getProfile(@GetUser() user: User) {
     return this.usersService.findById(user.id);
   }
 
