@@ -172,7 +172,7 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+    const payload = { sub: userId, email, role, jti: crypto.randomUUID() };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.get('JWT_SECRET'),

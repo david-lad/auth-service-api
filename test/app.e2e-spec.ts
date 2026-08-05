@@ -4,6 +4,8 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+const TEST_PASSWORD = 'Password123!';
+
 describe('Authentication Service (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -18,7 +20,7 @@ describe('Authentication Service (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -26,9 +28,9 @@ describe('Authentication Service (e2e)', () => {
         transform: true,
       }),
     );
-    
+
     app.setGlobalPrefix('api');
-    
+
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
@@ -43,12 +45,32 @@ describe('Authentication Service (e2e)', () => {
   });
 
   describe('Auth Endpoints', () => {
+    it('/api/auth/register (POST) - should fail with weak password', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          email: 'weak@example.com',
+          password: 'weak',
+        })
+        .expect(400);
+    });
+
+    it('/api/auth/register (POST) - should fail with invalid email', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          email: 'invalid-email',
+          password: TEST_PASSWORD,
+        })
+        .expect(400);
+    });
+
     it('/api/auth/register (POST) - should register a new user', () => {
       return request(app.getHttpServer())
         .post('/api/auth/register')
         .send({
           email: 'test@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
           firstName: 'Test',
           lastName: 'User',
         })
@@ -69,29 +91,9 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/register')
         .send({
           email: 'test@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
         })
         .expect(409);
-    });
-
-    it('/api/auth/register (POST) - should fail with invalid email', () => {
-      return request(app.getHttpServer())
-        .post('/api/auth/register')
-        .send({
-          email: 'invalid-email',
-          password: 'password123',
-        })
-        .expect(400);
-    });
-
-    it('/api/auth/register (POST) - should fail with short password', () => {
-      return request(app.getHttpServer())
-        .post('/api/auth/register')
-        .send({
-          email: 'another@example.com',
-          password: '123',
-        })
-        .expect(400);
     });
 
     it('/api/auth/login (POST) - should login successfully', () => {
@@ -99,7 +101,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/login')
         .send({
           email: 'test@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
         })
         .expect(200)
         .then((response) => {
@@ -114,7 +116,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/login')
         .send({
           email: 'test@example.com',
-          password: 'wrongpassword',
+          password: 'WrongPassword1!',
         })
         .expect(401);
     });
@@ -124,7 +126,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/login')
         .send({
           email: 'nonexistent@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
         })
         .expect(401);
     });
@@ -195,7 +197,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/register')
         .send({
           email: 'admin@example.com',
-          password: 'admin123',
+          password: TEST_PASSWORD,
           firstName: 'Admin',
           lastName: 'User',
         });
@@ -209,7 +211,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/login')
         .send({
           email: 'admin@example.com',
-          password: 'admin123',
+          password: TEST_PASSWORD,
         });
 
       adminAccessToken = adminLogin.body.accessToken;
@@ -218,7 +220,7 @@ describe('Authentication Service (e2e)', () => {
         .post('/api/auth/login')
         .send({
           email: 'test@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
         });
 
       userAccessToken = userLogin.body.accessToken;
@@ -243,12 +245,11 @@ describe('Authentication Service (e2e)', () => {
     });
 
     it('/api/users/assign-role (POST) - admin should assign roles', async () => {
-      // Create a new user to assign role to
       const newUser = await request(app.getHttpServer())
         .post('/api/auth/register')
         .send({
           email: 'roletest@example.com',
-          password: 'password123',
+          password: TEST_PASSWORD,
           firstName: 'Role',
           lastName: 'Test',
         });

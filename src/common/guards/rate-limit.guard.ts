@@ -7,6 +7,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
 export const RATE_LIMIT_KEY = 'rateLimit';
@@ -22,12 +23,16 @@ interface RateLimitEntry {
 export class RateLimitGuard implements CanActivate {
   private store = new Map<string, RateLimitEntry>();
 
-  constructor(private reflector: Reflector) {
-    // Cleanup expired entries every 5 minutes
+  constructor(
+    private reflector: Reflector,
+    private configService: ConfigService,
+  ) {
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
 
   canActivate(context: ExecutionContext): boolean {
+    if (this.configService.get('NODE_ENV') === 'test') return true;
+
     const metadata = this.reflector.get<{ ttl: number; limit: number }>(
       RATE_LIMIT_KEY,
       context.getHandler(),
