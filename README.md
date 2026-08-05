@@ -8,13 +8,18 @@ A standalone authentication and authorization backend built with NestJS, Postgre
 - Role-based authorization (USER, ADMIN)
 - Secure password hashing with bcrypt
 - Refresh token rotation and revocation
+- Rate limiting on auth endpoints
+- Account lockout after failed login attempts
+- Password strength validation
+- Email verification
 - PostgreSQL + Prisma ORM
 - Input validation and sanitization
 - Modular architecture
+- Strict TypeScript configuration
 
 ## Tech Stack
 
-- NestJS, TypeScript
+- NestJS, TypeScript (strict mode)
 - PostgreSQL, Prisma
 - Passport JWT
 - class-validator
@@ -37,7 +42,6 @@ npm install
 ```bash
 cp .env.example .env
 ```
-
 
 ```env
 # Database
@@ -74,11 +78,13 @@ Service runs at http://localhost:3000/api
 ## API Endpoints
 
 **Authentication**
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/refresh
-- POST /api/auth/logout
-- GET  /api/auth/me
+- POST /api/auth/register — register new user (rate limited: 3/hour)
+- POST /api/auth/login — login (rate limited: 5/15min, account lockout after 5 failures)
+- POST /api/auth/refresh — refresh tokens
+- POST /api/auth/logout — revoke refresh token
+- GET  /api/auth/verify-email/:token — verify email address
+- POST /api/auth/resend-verification — resend verification token
+- GET  /api/auth/me — get current user profile
 
 **Users**
 - GET    /api/users (admin)
@@ -95,6 +101,23 @@ Service runs at http://localhost:3000/api
 - Long-lived refresh tokens (7d, revocable)
 - Separate JWT secrets
 - Input validation and whitelisting
+- Rate limiting: 3 registrations/hour, 5 login attempts/15 minutes
+- Account lockout: 5 failed attempts triggers 15-minute lock
+- Password strength: minimum 8 characters, uppercase, lowercase, number, and special character required
+- Email verification on registration
+
+## Password Policy
+
+Passwords must contain at least:
+- 8 characters
+- 1 uppercase letter
+- 1 lowercase letter
+- 1 number
+- 1 special character (!@#$%^&*...)
+
+## Account Lockout
+
+After 5 consecutive failed login attempts, the account is locked for 15 minutes. The lockout resets on successful login.
 
 ## RBAC
 
@@ -110,10 +133,6 @@ Decorators: `@Public()`, `@Roles(...)`, `@GetUser()`
 npm test
 npm run test:e2e
 ```
-
-Demo accounts (after seed):
-- admin@example.com / admin123
-- user@example.com / user123
 
 ## Deployment
 

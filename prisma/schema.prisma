@@ -27,6 +27,10 @@ model User {
   failedLoginAttempts Int      @default(0)
   lockedUntil         DateTime?
 
+  // Email verification fields
+  isEmailVerified       Boolean  @default(false)
+  emailVerificationToken String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

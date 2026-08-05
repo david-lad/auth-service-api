@@ -1,10 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
@@ -27,8 +28,11 @@ export class AuthService {
     const user = await this.usersService.create(registerDto);
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
-    
-    return { user, ...tokens };
+
+    // Generate email verification token
+    const verificationToken = await this.generateEmailVerificationToken(user.id);
+
+    return { user, ...tokens, emailVerificationToken: verificationToken };
   }
 
   async login(loginDto: LoginDto) {
@@ -131,6 +135,40 @@ export class AuthService {
     const user = await this.usersService.findById(userId);
     if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
     return user;
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { emailVerificationToken: token },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+      },
+    });
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async resendVerificationEmail(userId: string) {
+    const token = await this.generateEmailVerificationToken(userId);
+    return { emailVerificationToken: token };
+  }
+
+  private async generateEmailVerificationToken(userId: string): Promise<string> {
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { emailVerificationToken: token },
+    });
+    return token;
   }
 
   private async generateTokens(userId: string, email: string, role: string) {

@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 import { User } from '@prisma/client';
 
-type SafeUser = Omit<User, 'password' | 'failedLoginAttempts' | 'lockedUntil'>;
+type SafeUser = Omit<User, 'password' | 'failedLoginAttempts' | 'lockedUntil' | 'emailVerificationToken'>;
 
 interface JwtPayload {
   sub: string;

@@ -11,6 +11,7 @@ const userSelect = {
   lastName: true,
   role: true,
   isActive: true,
+  isEmailVerified: true,
   createdAt: true,
   updatedAt: true,
 };
