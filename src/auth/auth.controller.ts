@@ -1,4 +1,5 @@
-import { Controller, Post, Body, UseGuards, Get, HttpCode, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, HttpCode, HttpStatus, Param, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
@@ -15,19 +16,19 @@ export class AuthController {
   @Public()
   @Post('register')
   @UseGuards(RateLimitGuard)
-  @RateLimit({ ttl: 3600000, limit: 3 }) // 3 per hour
+  @RateLimit({ ttl: 3600000, limit: 3 })
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(registerDto, req.ip);
   }
 
   @Public()
   @Post('login')
   @UseGuards(RateLimitGuard)
-  @RateLimit({ ttl: 900000, limit: 5 }) // 5 per 15 minutes
+  @RateLimit({ ttl: 900000, limit: 5 })
   @HttpCode(HttpStatus.OK)
-  login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    return this.authService.login(loginDto, req.ip);
   }
 
   @Public()
@@ -39,8 +40,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.logout(refreshTokenDto.refreshToken);
+  logout(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: Request) {
+    return this.authService.logout(refreshTokenDto.refreshToken, req.ip);
   }
 
   @Public()

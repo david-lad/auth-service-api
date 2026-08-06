@@ -57,3 +57,19 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+// AuditLog model - tracks security-relevant actions
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  targetId  String?
+  ip        String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

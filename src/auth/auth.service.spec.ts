@@ -5,6 +5,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -15,6 +16,7 @@ describe('AuthService', () => {
   let usersService: { create: jest.Mock; findByEmail: jest.Mock; findById: jest.Mock };
   let jwtService: { signAsync: jest.Mock; verify: jest.Mock };
   let configService: { get: jest.Mock };
+  let auditService: { log: jest.Mock };
 
   const mockUser = {
     id: 'user-1',
@@ -73,6 +75,10 @@ describe('AuthService', () => {
       }),
     };
 
+    auditService = {
+      log: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -80,6 +86,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
+        { provide: AuditService, useValue: auditService },
       ],
     }).compile();
 

@@ -12,6 +12,7 @@ A standalone authentication and authorization backend built with NestJS, Postgre
 - Account lockout after failed login attempts
 - Password strength validation
 - Email verification
+- Audit logging for security events
 - PostgreSQL + Prisma ORM
 - Input validation and sanitization
 - Modular architecture
@@ -118,6 +119,19 @@ Passwords must contain at least:
 ## Account Lockout
 
 After 5 consecutive failed login attempts, the account is locked for 15 minutes. The lockout resets on successful login.
+
+## Audit Logging
+
+The service logs security-relevant events to an `audit_logs` table:
+
+- `REGISTER` — new user created
+- `LOGIN` — successful login
+- `LOGIN_FAILED` — failed login attempt
+- `ACCOUNT_LOCKED` — account locked after 5 failures
+- `EMAIL_VERIFIED` — email address verified
+- `LOGOUT` — user logged out
+
+Each log entry includes: actor ID, action, target ID, IP address, and timestamp.
 
 ## RBAC
 

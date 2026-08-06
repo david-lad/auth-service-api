@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { AuditService, AuditAction } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -17,9 +18,10 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private auditService: AuditService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, ip?: string) {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -29,18 +31,24 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
-    // Generate email verification token
     const verificationToken = await this.generateEmailVerificationToken(user.id);
+
+    await this.auditService.log({
+      actorId: user.id,
+      action: AuditAction.REGISTER,
+      targetId: user.id,
+      ip,
+      details: `User registered with email ${user.email}`,
+    });
 
     return { user, ...tokens, emailVerificationToken: verificationToken };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, ip?: string) {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
 
-    // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const remainingMinutes = Math.ceil(
         (user.lockedUntil.getTime() - Date.now()) / 60000,
@@ -52,17 +60,23 @@ export class AuthService {
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
     if (!isPasswordValid) {
-      // Increment failed attempts
       const failedAttempts = user.failedLoginAttempts + 1;
       const updateData: { failedLoginAttempts: number; lockedUntil?: Date } = {
         failedLoginAttempts: failedAttempts,
       };
 
-      // Lock account after max attempts
       if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
         const lockUntil = new Date();
         lockUntil.setMinutes(lockUntil.getMinutes() + LOCKOUT_DURATION_MINUTES);
         updateData.lockedUntil = lockUntil;
+
+        await this.auditService.log({
+          actorId: user.id,
+          action: AuditAction.ACCOUNT_LOCKED,
+          targetId: user.id,
+          ip,
+          details: `Account locked after ${MAX_FAILED_ATTEMPTS} failed attempts`,
+        });
       }
 
       await this.prisma.user.update({
@@ -70,10 +84,17 @@ export class AuthService {
         data: updateData,
       });
 
+      await this.auditService.log({
+        actorId: user.id,
+        action: AuditAction.LOGIN_FAILED,
+        targetId: user.id,
+        ip,
+        details: `Failed login attempt ${failedAttempts}/${MAX_FAILED_ATTEMPTS}`,
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Reset failed attempts on successful login
     if (user.failedLoginAttempts > 0) {
       await this.prisma.user.update({
         where: { id: user.id },
@@ -83,6 +104,13 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
+
+    await this.auditService.log({
+      actorId: user.id,
+      action: AuditAction.LOGIN,
+      targetId: user.id,
+      ip,
+    });
 
     const { password, ...result } = user;
     return { user: result, ...tokens };
@@ -116,14 +144,14 @@ export class AuthService {
 
       const tokens = await this.generateTokens(user.id, user.email, user.role);
       await this.storeRefreshToken(user.id, tokens.refreshToken);
-      
+
       return tokens;
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, ip?: string) {
     await this.prisma.refreshToken.updateMany({
       where: { token: refreshToken },
       data: { isRevoked: true },
@@ -152,6 +180,13 @@ export class AuthService {
         isEmailVerified: true,
         emailVerificationToken: null,
       },
+    });
+
+    await this.auditService.log({
+      actorId: user.id,
+      action: AuditAction.EMAIL_VERIFIED,
+      targetId: user.id,
+      details: 'Email verified successfully',
     });
 
     return { message: 'Email verified successfully' };
