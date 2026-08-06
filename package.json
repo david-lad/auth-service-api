@@ -2,7 +2,7 @@
   "name": "authentication-service",
   "version": "1.0.0",
   "description": "Standalone Authentication & Authorization service with NestJS, PostgreSQL, and Prisma",
-  "author": "",
+  "author": "David Ladokun",
   "private": true,
   "license": "MIT",
   "scripts": {
